@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تطبيق تتبع الأهداف الشهرية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .goal-card {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .goal-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .day-cell {
+            transition: all 0.2s ease;
+        }
+        
+        .day-cell.completed:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+        
+        .progress-ring__circle {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 283;
+            transition: stroke-dashoffset 0.8s ease;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        
+        .modal {
+            transition: all 0.3s ease;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <header class="mb-10 text-center fade-in">
+            <div class="flex justify-center mb-4">
+                <img src="https://static.vecteezy.com/system/resources/thumbnails/006/948/446/small_2x/time-management-concept-business-people-working-near-the-big-clock-time-schedule-and-business-plan-flat-style-illustration-vector.jpg" alt="شعار تطبيق الأهداف الشهرية - أيقونة مضيئة على شكل نجمة ذهبية" class="rounded-full border-4 border-white shadow-lg w-16 h-16 md:w-20 md:h-20">
+            </div>
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">تتبع أهدافك الشهرية</h1>
+            <p class="text-lg text-gray-600 max-w-2xl mx-auto">أنشئ هدفًا وتتبع تقدمك اليومي لمدة 30 يومًا لبناء عادات جديدة ناجحة</p>
+        </header>
+
+        <!-- Current Month Progress -->
+        <section class="mb-12 bg-white rounded-2xl shadow-xl p-6 fade-in" style="animation-delay: 0.1s">
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <div class="mb-4 md:mb-0">
+                    <h2 class="text-2xl font-semibold text-gray-800">الشهر الحالي</h2>
+                    <div class="flex items-center mt-2">
+                        <span id="monthYear" class="text-gray-600 text-lg">يوليو 2023</span>
+                    </div>
+                </div>
+                
+                <div class="relative w-24 h-24 md:w-28 md:h-28">
+                    <svg class="w-full h-full" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" fill="none" stroke="#e2e8f0" stroke-width="8"/>
+                        <circle id="progressCircle" cx="50" cy="50" r="45" fill="none" stroke="#4f46e5" stroke-width="8" stroke-linecap="round" class="progress-ring__circle"/>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span id="progressPercentage" class="text-2xl font-bold text-gray-800">0%</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <p class="text-lg text-gray-700 text-center md:text-right mb-1">
+                        <span id="completedDays" class="font-bold text-indigo-600">0</span>
+                        <span> يوم مكتمل من </span>
+                        <span id="totalDays" class="font-bold text-gray-800">30</span>
+                    </p>
+                    <p id="monthMessage" class="text-gray-600 text-center md:text-right">ابدأ بتحقيق أول يوم!</p>
+                    <div class="mt-3">
+                        <p class="text-sm text-gray-500 text-center md:text-right">
+                            <span class="font-medium">عدد الأشهر المكتملة:</span> 
+                            <span id="completedMonths" class="text-indigo-600 font-bold">0</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Goals Section -->
+        <section class="mb-12 fade-in" style="animation-delay: 0.2s">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800">أهدافي</h2>
+                <button id="addGoalBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-plus ml-2"></i>
+                    <span>هدف جديد</span>
+                </button>
+            </div>
+            
+            <div id="goalsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Goals will be added here dynamically -->
+            </div>
+            
+            <div id="emptyState" class="text-center py-12 bg-white rounded-xl shadow-md">
+                <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/2b298120-0277-4c86-a993-c25b59094b7f.png" alt="صورة توضيحية لأهداف فارغة - شخص يفكر أمام لوحة فارغة" class="mx-auto mb-6 rounded-lg w-48 h-32 object-cover">
+                <h3 class="text-xl font-medium text-gray-700 mb-2">لا توجد أهداف بعد</h3>
+                <p class="text-gray-500 mb-4">ابدأ بإضافة هدف جديد لتتبع تقدمك خلال الشهر</p>
+                <button id="addFirstGoalBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg inline-flex items-center transition-colors">
+                    <i class="fas fa-plus ml-2"></i>
+                    <span>إضافة أول هدف</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Calendar Section -->
+        <section class="mb-12 fade-in" style="animation-delay: 0.3s">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">تقويم التتبع</h2>
+            
+            <div class="bg-white rounded-2xl shadow-xl p-6 overflow-x-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <div id="currentMonthCalendar" class="text-xl font-medium text-gray-700">يوليو 2023</div>
+                    <div class="flex space-x-3 space-x-reverse">
+                        <button id="prevMonthBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                            <i class="fas fa-chevron-right text-gray-600"></i>
+                        </button>
+                        <button id="nextMonthBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                            <i class="fas fa-chevron-left text-gray-600"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-7 gap-1 mb-2">
+                    <div class="text-center font-medium text-gray-500">الأحد</div>
+                    <div class="text-center font-medium text-gray-500">السبت</div>
+                    <div class="text-center font-medium text-gray-500">الجمعة</div>
+                    <div class="text-center font-medium text-gray-500">الخميس</div>
+                    <div class="text-center font-medium text-gray-500">الأربعاء</div>
+                    <div class="text-center font-medium text-gray-500">الثلاثاء</div>
+                    <div class="text-center font-medium text-gray-500">الإثنين</div>
+                </div>
+                
+                <div id="calendarGrid" class="grid grid-cols-7 gap-1">
+                    <!-- Calendar days will be added here dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Section -->
+        <section class="mb-12 fade-in" style="animation-delay: 0.4s">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">إحصائياتك</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Current Streak -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-3">
+                            <i class="fas fa-fire fa-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-gray-500 text-sm">السلسلة الحالية</h3>
+                            <p id="currentStreak" class="text-2xl font-bold text-gray-800">0 يوم</p>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 text-sm">عدد الأيام المتتالية التي حققت فيها أهدافك</p>
+                </div>
+                
+                <!-- Best Streak -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="p-3 rounded-full bg-purple-100 text-purple-600 mr-3">
+                            <i class="fas fa-trophy fa-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-gray-500 text-sm">أفضل سلسلة</h3>
+                            <p id="bestStreak" class="text-2xl font-bold text-gray-800">0 يوم</p>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 text-sm">أفضل سلسلة أيام متتالية حققت فيها أهدافك</p>
+                </div>
+                
+                <!-- Completion Rate -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="p-3 rounded-full bg-green-100 text-green-600 mr-3">
+                            <i class="fas fa-percent fa-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-gray-500 text-sm">معدل الإنجاز</h3>
+                            <p id="completionRate" class="text-2xl font-bold text-gray-800">0%</p>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 text-sm">نسبة الأيام التي حققت فيها أهدافك هذا الشهر</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Achievements Section -->
+        <section class="fade-in" style="animation-delay: 0.5s">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">إنجازاتك</h2>
+            
+            <div id="achievementsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Achievement 1 -->
+                <div class="bg-white rounded-xl shadow-md p-6 text-center border-2 border-transparent hover:border-indigo-300 transition-colors">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-yellow-100 text-yellow-600">
+                        <i class="fas fa-calendar-check fa-xl"></i>
+                    </div>
+                    <h3 class="font-medium text-gray-800 mb-1">بداية رائعة</h3>
+                    <p class="text-gray-600 text-sm mb-2">أكمل أول يوم لك</p>
+                    <div id="firstDayBadge" class="bg-gray-100 text-gray-500 text-xs rounded-full px-3 py-1 inline-block">غير مكتمل</div>
+                </div>
+                
+                <!-- Achievement 2 -->
+                <div class="bg-white rounded-xl shadow-md p-6 text-center border-2 border-transparent hover:border-indigo-300 transition-colors">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-blue-100 text-blue-600">
+                        <i class="fas fa-calendar-week fa-xl"></i>
+                    </div>
+                    <h3 class="font-medium text-gray-800 mb-1">أسبوع متكامل</h3>
+                    <p class="text-gray-600 text-sm mb-2">أكمل 7 أيام متتالية</p>
+                    <div id="weekBadge" class="bg-gray-100 text-gray-500 text-xs rounded-full px-3 py-1 inline-block">غير مكتمل</div>
+                </div>
+                
+                <!-- Achievement 3 -->
+                <div class="bg-white rounded-xl shadow-md p-6 text-center border-2 border-transparent hover:border-indigo-300 transition-colors">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-green-100 text-green-600">
+                        <i class="fas fa-moon fa-xl"></i>
+                    </div>
+                    <h3 class="font-medium text-gray-800 mb-1">شهر كامل</h3>
+                    <p class="text-gray-600 text-sm mb-2">أكمل 30 يومًا متتالية</p>
+                    <div id="monthBadge" class="bg-gray-100 text-gray-500 text-xs rounded-full px-3 py-1 inline-block">غير مكتمل</div>
+                </div>
+                
+                <!-- Achievement 4 -->
+                <div class="bg-white rounded-xl shadow-md p-6 text-center border-2 border-transparent hover:border-indigo-300 transition-colors">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-purple-100 text-purple-600">
+                        <i class="fas fa-bolt fa-xl"></i>
+                    </div>
+                    <h3 class="font-medium text-gray-800 mb-1">متسمر بقوة</h3>
+                    <p class="text-gray-600 text-sm mb-2">أكمل 100 يوم إجمالي</p>
+                    <div id="hundredDaysBadge" class="bg-gray-100 text-gray-500 text-xs rounded-full px-3 py-1 inline-block">غير مكتمل</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Add Goal Modal -->
+        <div id="goalModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden modal">
+            <div class="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">إضافة هدف جديد</h3>
+                        <button id="closeModalBtn" class="p-1 rounded-full hover:bg-gray-100 transition-colors">
+                            <i class="fas fa-times text-gray-500"></i>
+                        </button>
+                    </div>
+                    
+                    <form id="goalForm" class="space-y-4">
+                        <div>
+                            <label for="goalTitle" class="block text-gray-700 mb-1">عنوان الهدف</label>
+                            <input type="text" id="goalTitle" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="مثال: ممارسة الرياضة" required>
+                        </div>
+                        
+                        <div>
+                            <label for="goalDescription" class="block text-gray-700 mb-1">وصف الهدف (اختياري)</label>
+                            <textarea id="goalDescription" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" rows="3" placeholder="مثال: 30 دقيقة من المشي السريع"></textarea>
+                        </div>
+                        
+                        <div>
+                            <label for="goalCategory" class="block text-gray-700 mb-1">الفئة</label>
+                            <select id="goalCategory" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="health">الصحة</option>
+                                <option value="work">العمل</option>
+                                <option value="study">الدراسة</option>
+                                <option value="personal">شخصي</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex space-x-4 space-x-reverse">
+                            <div class="w-1/2">
+                                <label for="goalColor" class="block text-gray-700 mb-1">لون الهدف</label>
+                                <div class="flex space-x-2 space-x-reverse">
+                                    <div class="relative">
+                                        <input type="radio" name="goalColor" id="colorPurple" value="purple" class="sr-only peer" checked>
+                                        <label for="colorPurple" class="block w-8 h-8 bg-purple-500 rounded-full cursor-pointer peer-checked:ring-2 peer-checked:ring-purple-600 peer-checked:ring-offset-2"></label>
+                                    </div>
+                                    <div class="relative">
+                                        <input type="radio" name="goalColor" id="colorBlue" value="blue" class="sr-only peer">
+                                        <label for="colorBlue" class="block w-8 h-8 bg-blue-500 rounded-full cursor-pointer peer-checked:ring-2 peer-checked:ring-blue-600 peer-checked:ring-offset-2"></label>
+                                    </div>
+                                    <div class="relative">
+                                        <input type="radio" name="goalColor" id="colorGreen" value="green" class="sr-only peer">
+                                        <label for="colorGreen" class="block w-8 h-8 bg-green-500 rounded-full cursor-pointer peer-checked:ring-2 peer-checked:ring-green-600 peer-checked:ring-offset-2"></label>
+                                    </div>
+                                    <div class="relative">
+                                        <input type="radio" name="goalColor" id="colorYellow" value="yellow" class="sr-only peer">
+                                        <label for="colorYellow" class="block w-8 h-8 bg-yellow-500 rounded-full cursor-pointer peer-checked:ring-2 peer-checked:ring-yellow-600 peer-checked:ring-offset-2"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="w-1/2">
+                                <label for="goalIcon" class="block text-gray-700 mb-1">أيقونة الهدف</label>
+                                <select id="goalIcon" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="dumbbell">رياضة</option>
+                                    <option value="book">قراءة</option>
+                                    <option value="utensils">طعام</option>
+                                    <option value="running">ركض</option>
+                                    <option value="medal">إنجاز</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="editButtons" class="flex justify-end gap-4 hidden">
+                            <button type="button" id="cancelEditBtn" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">إلغاء</button>
+                            <button type="button" id="deleteGoalBtn" class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">حذف</button>
+                            <button type="button" id="saveEditBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">حفظ التعديلات</button>
+                        </div>
+                        
+                        <div class="pt-4">
+                            <button type="submit" id="saveGoalBtn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors">حفظ الهدف</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data and State Management
+        const app = {
+            currentMonth: new Date().getMonth(),
+            currentYear: new Date().getFullYear(),
+            selectedGoal: null,
+            editingGoalId: null,
+            
+            // Initialize the app
+            init: function() {
+                this.setupEventListeners();
+                this.loadGoals();
+                this.updateMonthYear();
+                this.renderCalendar();
+                this.updateProgress();
+                this.updateStats();
+                this.updateAchievements();
+            },
+            
+            // Get color classes based on color name
+            getColorClasses: function(color) {
+                const colors = {
+                    purple: {
+                        bg: 'bg-purple-100',
+                        text: 'text-purple-800',
+                        border: 'border-purple-300',
+                        icon: 'text-purple-500'
+                    },
+                    blue: {
+                        bg: 'bg-blue-100',
+                        text: 'text-blue-800',
+                        border: 'border-blue-300',
+                        icon: 'text-blue-500'
+                    },
+                    green: {
+                        bg: 'bg-green-100',
+                        text: 'text-green-800',
+                        border: 'border-green-300',
+                        icon: 'text-green-500'
+                    },
+                    yellow: {
+                        bg: 'bg-yellow-100',
+                        text: 'text-yellow-800',
+                        border: 'border-yellow-300',
+                        icon: 'text-yellow-500'
+                    }
+                };
+                return colors[color] || colors.purple;
+            },
+            
+            // Get icon class based on icon name
+            getIcon: function(iconName) {
+                const icons = {
+                    dumbbell: 'fas fa-dumbbell',
+                    book: 'fas fa-book',
+                    utensils: 'fas fa-utensils',
+                    running: 'fas fa-running',
+                    medal: 'fas fa-medal'
+                };
+                return icons[iconName] || 'fas fa-bullseye';
+            },
+            
+            // Set up event listeners
+            setupEventListeners: function() {
+                // Modal buttons
+                document.getElementById('addGoalBtn').addEventListener('click', () => this.showAddGoalModal());
+                document.getElementById('addFirstGoalBtn').addEventListener('click', () => this.showAddGoalModal());
+                document.getElementById('closeModalBtn').addEventListener('click', () => this.hideGoalModal());
+                
+                // Goal form
+                document.getElementById('goalForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveGoal();
+                });
+                
+                // Calendar navigation
+                document.getElementById('prevMonthBtn').addEventListener('click', () => this.prevMonth());
+                document.getElementById('nextMonthBtn').addEventListener('click', () => this.nextMonth());
+                
+                // Edit buttons
+                document.getElementById('cancelEditBtn').addEventListener('click', () => this.cancelEdit());
+                document.getElementById('deleteGoalBtn').addEventListener('click', () => this.deleteGoal());
+                document.getElementById('saveEditBtn').addEventListener('click', () => this.saveEditedGoal());
+            },
+            
+            // Load goals from localStorage
+            loadGoals: function() {
+                const goals = JSON.parse(localStorage.getItem('monthlyGoals')) || [];
+                if (goals.length > 0) {
+                    document.getElementById('emptyState').classList.add('hidden');
+                    this.renderGoals(goals);
+                } else {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                }
+                return goals;
+            },
+            
+            // Save goals to localStorage
+            saveGoals: function(goals) {
+                localStorage.setItem('monthlyGoals', JSON.stringify(goals));
+            },
+            
+            // Load completed days from localStorage
+            loadCompletedDays: function() {
+                return JSON.parse(localStorage.getItem('completedDays')) || {};
+            },
+            
+            // Save completed days to localStorage
+            saveCompletedDays: function(days) {
+                localStorage.setItem('completedDays', JSON.stringify(days));
+            },
+            
+            // Load streak data from localStorage
+            loadStreakData: function() {
+                return JSON.parse(localStorage.getItem('streakData')) || {
+                    currentStreak: 0,
+                    bestStreak: 0,
+                    totalCompleted: 0
+                };
+            },
+            
+            // Save streak data to localStorage
+            saveStreakData: function(data) {
+                localStorage.setItem('streakData', JSON.stringify(data));
+            },
+            
+            // Show add goal modal
+            showAddGoalModal: function(goalId = null) {
+                const modal = document.getElementById('goalModal');
+                const form = document.getElementById('goalForm');
+                
+                if (goalId) {
+                    // Editing existing goal
+                    const goals = this.loadGoals();
+                    const goal = goals.find(g => g.id === goalId);
+                    
+                    if (goal) {
+                        this.editingGoalId = goalId;
+                        document.getElementById('goalTitle').value = goal.title;
+                        document.getElementById('goalDescription').value = goal.description || '';
+                        document.getElementById('goalCategory').value = goal.category;
+                        document.querySelector(`input[name="goalColor"][value="${goal.color}"]`).checked = true;
+                        document.getElementById('goalIcon').value = goal.icon;
+                        
+                        document.getElementById('editButtons').classList.remove('hidden');
+                        document.getElementById('saveGoalBtn').classList.add('hidden');
+                    }
+                } else {
+                    // Adding new goal
+                    this.editingGoalId = null;
+                    form.reset();
+                    document.getElementById('editButtons').classList.add('hidden');
+                    document.getElementById('saveGoalBtn').classList.remove('hidden');
+                }
+                
+                modal.classList.remove('hidden');
+            },
+            
+            // Hide goal modal
+            hideGoalModal: function() {
+                document.getElementById('goalModal').classList.add('hidden');
+            },
+            
+            // Save new goal
+            saveGoal: function() {
+                const title = document.getElementById('goalTitle').value.trim();
+                const description = document.getElementById('goalDescription').value.trim();
+                const category = document.getElementById('goalCategory').value;
+                const color = document.querySelector('input[name="goalColor"]:checked').value;
+                const icon = document.getElementById('goalIcon').value;
+                
+                if (!title) return;
+                
+                const goals = this.loadGoals();
+                const newGoal = {
+                    id: Date.now().toString(),
+                    title,
+                    description,
+                    category,
+                    color,
+                    icon,
+                    createdAt: new Date().toISOString(),
+                    completedDays: {}
+                };
+                
+                goals.push(newGoal);
+                this.saveGoals(goals);
+                this.hideGoalModal();
+                
+                document.getElementById('emptyState').classList.add('hidden');
+                this.renderGoals(goals);
+            },
+            
+            // Save edited goal
+            saveEditedGoal: function() {
+                const title = document.getElementById('goalTitle').value.trim();
+                const description = document.getElementById('goalDescription').value.trim();
+                const category = document.getElementById('goalCategory').value;
+                const color = document.querySelector('input[name="goalColor"]:checked').value;
+                const icon = document.getElementById('goalIcon').value;
+                
+                if (!title || !this.editingGoalId) return;
+                
+                const goals = this.loadGoals();
+                const goalIndex = goals.findIndex(g => g.id === this.editingGoalId);
+                
+                if (goalIndex !== -1) {
+                    goals[goalIndex] = {
+                        ...goals[goalIndex],
+                        title,
+                        description,
+                        category,
+                        color,
+                        icon
+                    };
+                    
+                    this.saveGoals(goals);
+                    this.hideGoalModal();
+                    this.renderGoals(goals);
+                }
+            },
+            
+            // Cancel editing goal
+            cancelEdit: function() {
+                this.hideGoalModal();
+            },
+            
+            // Delete goal
+            deleteGoal: function() {
+                if (!this.editingGoalId) return;
+                
+                if (confirm('هل أنت متأكد من حذف هذا الهدف؟ سيتم حذف جميع البيانات المرتبطة به.')) {
+                    const goals = this.loadGoals();
+                    const updatedGoals = goals.filter(g => g.id !== this.editingGoalId);
+                    
+                    this.saveGoals(updatedGoals);
+                    this.hideGoalModal();
+                    
+                    if (updatedGoals.length === 0) {
+                        document.getElementById('emptyState').classList.remove('hidden');
+                    }
+                    
+                    this.renderGoals(updatedGoals);
+                }
+            },
+            
+            // Toggle day completion for a goal
+            toggleDayCompletion: function(goalId, day) {
+                const goals = this.loadGoals();
+                const goalIndex = goals.findIndex(g => g.id === goalId);
+                
+                if (goalIndex !== -1) {
+                    const dateStr = this.getCurrentMonthYear();
+                    const dateKey = `${dateStr}-${day.toString().padStart(2, '0')}`;
+                    
+                    if (goals[goalIndex].completedDays[dateKey]) {
+                        delete goals[goalIndex].completedDays[dateKey];
+                    } else {
+                        goals[goalIndex].completedDays[dateKey] = true;
+                    }
+                    
+                    this.saveGoals(goals);
+                    this.renderGoals(goals);
+                    this.updateProgress();
+                    this.updateStats();
+                    this.updateAchievements();
+                    
+                    // Update streak data
+                    this.updateStreakData(day);
+                }
+            },
+            
+            // Update streak data when a day is marked/unmarked
+            updateStreakData: function(day) {
+                const date = new Date();
+                date.setDate(day);
+                const today = date.toISOString().split('T')[0];
+                
+                const streakData = this.loadStreakData();
+                const completedDays = this.loadCompletedDays();
+                
+                // Check if today is marked
+                const isTodayMarked = Object.values(this.loadGoals())
+                    .some(goal => goal.completedDays[`${this.getCurrentMonthYear()}-${day.toString().padStart(2, '0')}`]);
+                
+                if (isTodayMarked) {
+                    // Day is being marked as completed
+                    completedDays[today] = true;
+                    
+                    // Check if yesterday was completed to continue streak
+                    const yesterday = new Date(date);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStr = yesterday.toISOString().split('T')[0];
+                    
+                    if (completedDays[yesterdayStr]) {
+                        streakData.currentStreak++;
+                    } else {
+                        // Check if it's the next day after a break (might be same month)
+                        if (streakData.currentStreak === 0) {
+                            streakData.currentStreak = 1;
+                        }
+                    }
+                    
+                    if (streakData.currentStreak > streakData.bestStreak) {
+                        streakData.bestStreak = streakData.currentStreak;
+                    }
+                    
+                    streakData.totalCompleted++;
+                } else {
+                    // Day is being unmarked
+                    delete completedDays[today];
+                    
+                    // Need to recalculate streaks as this might break them
+                    const dates = Object.keys(completedDays).sort();
+                    let currentStreak = 0;
+                    let maxStreak = 0;
+                    let prevDate = null;
+                    
+                    for (const dateStr of dates) {
+                        const currentDate = new Date(dateStr);
+                        
+                        if (prevDate) {
+                            const diff = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
+                            if (diff === 1) {
+                                currentStreak++;
+                            } else {
+                                if (currentStreak > maxStreak) maxStreak = currentStreak;
+                                currentStreak = 1;
+                            }
+                        } else {
+                            currentStreak = 1;
+                        }
+                        
+                        prevDate = currentDate;
+                    }
+                    
+                    if (currentStreak > maxStreak) maxStreak = currentStreak;
+                    
+                    streakData.currentStreak = currentStreak;
+                    streakData.bestStreak = Math.max(streakData.bestStreak, maxStreak);
+                    streakData.totalCompleted--;
+                }
+                
+                this.saveStreakData(streakData);
+                this.saveCompletedDays(completedDays);
+            },
+            
+            // Render goals list
+            renderGoals: function(goals) {
+                const container = document.getElementById('goalsContainer');
+                container.innerHTML = '';
+                
+                goals.forEach(goal => {
+                    const colorClasses = this.getColorClasses(goal.color);
+                    const iconClass = this.getIcon(goal.icon);
+                    
+                    const daysCompleted = Object.keys(goal.completedDays).filter(key => 
+                        key.startsWith(this.getCurrentMonthYear())
+                    ).length;
+                    
+                    const goalElement = document.createElement('div');
+                    goalElement.className = `goal-card bg-white rounded-xl shadow-md overflow-hidden border-l-4 ${colorClasses.border}`;
+                    goalElement.dataset.id = goal.id;
+                    
+                    goalElement.innerHTML = `
+                        <div class="p-6">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="text-lg font-semibold ${colorClasses.text}">${goal.title}</h3>
+                                    ${goal.description ? `<p class="text-gray-600 text-sm mt-1">${goal.description}</p>` : ''}
+                                </div>
+                                <div class="flex-shrink-0 ml-3">
+                                    <div class="w-10 h-10 rounded-full ${colorClasses.bg} flex items-center justify-center">
+                                        <i class="${iconClass} ${colorClasses.icon}"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center mt-4">
+                                <div class="text-gray-500 text-sm">
+                                    <span class="font-medium ${colorClasses.text}">${daysCompleted}</span>
+                                    <span>من</span>
+                                    <span class="font-medium text-gray-800">30</span>
+                                    <span>يوم</span>
+                                </div>
+                                
+                                <div class="flex space-x-2 space-x-reverse items-center">
+                                    <button class="p-2 text-gray-500 hover:text-gray-700 edit-goal" data-id="${goal.id}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <div class="h-2 w-20 bg-gray-200 rounded-full overflow-hidden">
+                                        <div class="h-full ${colorClasses.bg}" style="width: ${(daysCompleted / 30) * 100}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="px-6 pb-4">
+                            <div class="grid grid-cols-10 gap-1">
+                                ${Array.from({ length: 30 }, (_, i) => {
+                                    const dayNumber = i + 1;
+                                    const isCompleted = goal.completedDays[`${this.getCurrentMonthYear()}-${dayNumber.toString().padStart(2, '0')}`];
+                                    const isFuture = dayNumber > new Date().getDate() || 
+                                                    (new Date().getMonth() !== this.currentMonth) || 
+                                                    (new Date().getFullYear() !== this.currentYear);
+                                    
+                                    return `
+                                        <button class="day-cell w-6 h-6 rounded-full text-xs flex items-center justify-center 
+                                            ${isCompleted ? colorClasses.bg : 'bg-gray-100'} 
+                                            ${isCompleted ? 'text-white' : 'text-gray-600'}
+                                            ${isFuture ? 'opacity-50 cursor-not-allowed' : ''}"
+                                            data-day="${dayNumber}" data-goalid="${goal.id}"
+                                            ${isFuture ? 'disabled' : ''}>
+                                            ${dayNumber}
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                    
+                    container.appendChild(goalElement);
+                });
+                
+                // Add event listeners to day cells and edit buttons
+                document.querySelectorAll('.day-cell:not([disabled])').forEach(cell => {
+                    cell.addEventListener('click', () => {
+                        const goalId = cell.dataset.goalid;
+                        const day = parseInt(cell.dataset.day);
+                        this.toggleDayCompletion(goalId, day);
+                    });
+                });
+                
+                document.querySelectorAll('.edit-goal').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const goalId = btn.dataset.id;
+                        this.showAddGoalModal(goalId);
+                    });
+                });
+            },
+            
+            // Update month and year display
+            updateMonthYear: function() {
+                const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+                const monthYearString = `${monthNames[this.currentMonth]} ${this.currentYear}`;
+                
+                document.getElementById('monthYear').textContent = monthYearString;
+                document.getElementById('currentMonthCalendar').textContent = monthYearString;
+            },
+            
+            // Get current month and year as string (YYYY-MM)
+            getCurrentMonthYear: function() {
+                return `${this.currentYear}-${(this.currentMonth + 1).toString().padStart(2, '0')}`;
+            },
+            
+            // Render calendar
+            renderCalendar: function() {
+                const calendarGrid = document.getElementById('calendarGrid');
+                calendarGrid.innerHTML = '';
+                
+                const firstDay = new Date(this.currentYear, this.currentMonth, 1).getDay();
+                const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+                
+                // Adjust for Arabic RTL (week starts on Sunday = 0)
+                let offset = (firstDay + 1) % 7;
+                
+                // Add empty cells for days before the first day of the month
+                for (let i = 0; i < offset; i++) {
+                    const emptyCell = document.createElement('div');
+                    emptyCell.className = 'day-cell h-10';
+                    calendarGrid.appendChild(emptyCell);
+                }
+                
+                // Add cells for each day of the month
+                const goals = this.loadGoals();
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateKey = `${this.getCurrentMonthYear()}-${day.toString().padStart(2, '0')}`;
+                    const isToday = day === new Date().getDate() && 
+                                    this.currentMonth === new Date().getMonth() && 
+                                    this.currentYear === new Date().getFullYear();
+                    
+                    // Check if any goal has this day marked
+                    const isCompleted = goals.some(goal => goal.completedDays[dateKey]);
+                    const isFuture = new Date(this.currentYear, this.currentMonth, day) > new Date();
+                    
+                    const dayCell = document.createElement('div');
+                    dayCell.className = `day-cell h-10 rounded flex items-center justify-center relative cursor-default
+                        ${isCompleted ? 'bg-indigo-100 text-indigo-800 font-medium' : ''}
+                        ${isToday ? 'border-2 border-indigo-500' : ''}
+                        ${isFuture ? 'text-gray-400' : 'text-gray-700 hover:bg-gray-100'}`;
+                    
+                    dayCell.textContent = day;
+                    
+                    if (isCompleted) {
+                        dayCell.innerHTML += `
+                            <div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-indigo-500"></div>
+                        `;
+                    }
+                    
+                    calendarGrid.appendChild(dayCell);
+                }
+            },
+            
+            // Navigate to previous month
+            prevMonth: function() {
+                if (this.currentMonth === 0) {
+                    this.currentMonth = 11;
+                    this.currentYear--;
+                } else {
+                    this.currentMonth--;
+                }
+                
+                this.updateMonthYear();
+                this.renderCalendar();
+            },
+            
+            // Navigate to next month
+            nextMonth: function() {
+                if (this.currentMonth === 11) {
+                    this.currentMonth = 0;
+                    this.currentYear++;
+                } else {
+                    this.currentMonth++;
+                }
+                
+                this.updateMonthYear();
+                this.renderCalendar();
+            },
+            
+            // Update progress circle and percentage
+            updateProgress: function() {
+                const goals = this.loadGoals();
+                const currentDate = new Date();
+                const currentDay = currentDate.getDate();
+                const isCurrentMonth = currentDate.getMonth() === this.currentMonth && 
+                                      currentDate.getFullYear() === this.currentYear;
+                
+                let completedDaysCount = 0;
+                let maxPossibleDays = 30; // Always show 30 days as target
+                
+                for (let day = 1; day <= maxPossibleDays; day++) {
+                    const dateKey = `${this.getCurrentMonthYear()}-${day.toString().padStart(2, '0')}`;
+                    const isCompleted = goals.some(goal => goal.completedDays[dateKey]);
+                    
+                    if (isCompleted) {
+                        completedDaysCount++;
+                    }
+                }
+                
+                const percentage = Math.round((completedDaysCount / maxPossibleDays) * 100);
+                
+                // Update progress circle
+                const circle = document.getElementById('progressCircle');
+                const radius = 45;
+                const circumference = 2 * Math.PI * radius;
+                const offset = circumference - (percentage / 100) * circumference;
+                
+                circle.style.strokeDashoffset = offset;
+                
+                // Update text displays
+                document.getElementById('progressPercentage').textContent = `${percentage}%`;
+                document.getElementById('completedDays').textContent = completedDaysCount;
+                document.getElementById('totalDays').textContent = maxPossibleDays;
+                
+                // Update motivational message
+                let message = '';
+                if (percentage === 0) {
+                    message = 'ابدأ بتحقيق أول يوم!';
+                } else if (percentage < 33) {
+                    message = 'استمر، لقد بدأت بشكل جيد!';
+                } else if (percentage < 66) {
+                    message = 'أكثر من نصف الطريق!';
+                } else if (percentage < 100) {
+                    message = 'أنت على وشك إكمال الشهر!';
+                } else {
+                    message = 'مبروك! لقد أكملت الشهر بنجاح!';
+                }
+                
+                document.getElementById('monthMessage').textContent = message;
+            },
+            
+            // Update stats section
+            updateStats: function() {
+                const streakData = this.loadStreakData();
+                // Calculate completed months from goals data
+                const goals = this.loadGoals();
+                let completedMonths = 0;
+                goals.forEach(goal => {
+                    const months = Object.keys(goal.completedDays)
+                        .map(date => date.split('-')[0] + '-' + date.split('-')[1])
+                        .filter((val, i, arr) => arr.indexOf(val) === i);
+                    completedMonths = Math.max(completedMonths, months.length);
+                });
+                document.getElementById('completedMonths').textContent = completedMonths;
+                
+                document.getElementById('currentStreak').textContent = `${streakData.currentStreak} يوم`;
+                document.getElementById('bestStreak').textContent = `${streakData.bestStreak} يوم`;
+                
+                const totalCompleted = streakData.totalCompleted;
+                const totalPossibleDays = Math.floor(totalCompleted / 30) * 30 + Math.min(totalCompleted % 30, 30);
+                const completionRate = totalPossibleDays > 0 ? Math.round((totalCompleted / totalPossibleDays) * 100) : 0;
+                
+                document.getElementById('completionRate').textContent = `${completionRate}%`;
+            },
+            
+            // Update achievements section
+            updateAchievements: function() {
+                const streakData = this.loadStreakData();
+                const goals = this.loadGoals();
+                
+                // First day achievement
+                const anyGoalCompleted = goals.some(goal => Object.keys(goal.completedDays).length > 0);
+                document.getElementById('firstDayBadge').textContent = anyGoalCompleted ? 'مكتمل ✓' : 'غير مكتمل';
+                document.getElementById('firstDayBadge').className = anyGoalCompleted ? 
+                    'bg-green-100 text-green-800 text-xs rounded-full px-3 py-1 inline-block' : 
+                    'bg-gray-100 text-gray-500 text-xs rounded-full px-3 py-1 inline-block';
+                
+                // Week streak achievement
+                const weekAchieved = streakData.bestStreak >= 7;
+                document.getElementById('weekBadge').textContent = weekAchieved ? 'مكتمل ✓' : 'غير مكتمل';
+                document.getElementById('weekBadge').className = weekAchieved ? 
+                    'bg-green-100 text-green-800 text-xs rounded-full px-3 py-1 inline-block' : 
+                    'bg-gray-100 text-gray-500 text-xs rounded-full px-3 py-1 inline-block';
+                
+                // Month streak achievement
+                const monthAchieved = streakData.bestStreak >= 30;
+                document.getElementById('monthBadge').textContent = monthAchieved ? 'مكتمل ✓' : 'غير مكتمل';
+                document.getElementById('monthBadge').className = monthAchieved ? 
+                    'bg-green-100 text-green-800 text-xs rounded-full px-3 py-1 inline-block' : 
+                    'bg-gray-100 text-gray-500 text-xs rounded-full px-3 py-1 inline-block';
+                
+                // 100 days achievement
+                const hundredDaysAchieved = streakData.totalCompleted >= 100;
+                document.getElementById('hundredDaysBadge').textContent = hundredDaysAchieved ? 'مكتمل ✓' : 'غير مكتمل';
+                document.getElementById('hundredDaysBadge').className = hundredDaysAchieved ? 
+                    'bg-green-100 text-green-800 text-xs rounded-full px-3 py-1 inline-block' : 
+                    'bg-gray-100 text-gray-500 text-xs rounded-full px-3 py-1 inline-block';
+            }
+        };
+        
+        // Initialize the app when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
+
